@@ -109,6 +109,12 @@ export class Game {
     this.applyCamera();
   }
 
+  /** For automated checks: the centre of the always-visible CTA. */
+  ctaPoint(): Vec {
+    const b = this.hud.cta.getBounds();
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  }
+
   /** For automated checks: where a world point lands on screen. */
   worldToScreen(p: Vec): Vec {
     const g = this.world.toGlobal(p);

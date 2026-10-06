@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playable ads — two demos</title>
+    <style>
+      :root { --bg: #17131f; --panel: #221c2e; --line: #3a3150; --text: #ece7f5; --dim: #a59bb8; --accent: #7cde45; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      a { color: var(--accent); }
+      header, section { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+      header { padding-top: 40px; }
+      h1 { font-size: 30px; margin: 0 0 8px; }
+      header p { color: var(--dim); max-width: 720px; margin: 0; }
+      section { margin-top: 44px; }
+      h2 { font-size: 22px; margin: 0 0 4px; }
+      .sub { color: var(--dim); margin: 0 0 16px; }
+      .demo { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: start; }
+      .phone { position: relative; border: 10px solid #0b0910; border-radius: 34px; background: #000; box-shadow: 0 10px 40px rgba(0,0,0,.5); overflow: hidden; transition: width .25s, height .25s; }
+      .phone iframe { display: block; width: 100%; height: 100%; border: 0; }
+      .controls { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .row b { width: 92px; color: var(--dim); font-weight: 600; }
+      button, select { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+      button.on { border-color: var(--accent); color: var(--accent); }
+      .log { min-height: 92px; max-height: 140px; overflow: auto; padding: 10px 12px; background: #0f0c15; border: 1px solid var(--line); border-radius: 8px; font: 13px/1.5 ui-monospace, Consolas, monospace; color: var(--accent); white-space: pre-wrap; }
+      .log:empty::before { content: "CTA calls appear here: finish the level or press PLAY NOW after touching the game."; color: var(--dim); }
+      table { border-collapse: collapse; width: 100%; font-size: 14px; }
+      th, td { text-align: left; padding: 5px 10px 5px 0; border-bottom: 1px solid var(--line); }
+      th { color: var(--dim); font-weight: 600; }
+      code { font: 13px ui-monospace, Consolas, monospace; color: #e8d6ff; }
+      .qr { display: flex; gap: 14px; align-items: center; color: var(--dim); font-size: 14px; }
+      .qr svg { width: 104px; height: 104px; background: #fff; border-radius: 8px; padding: 4px; }
+      footer { max-width: 1080px; margin: 56px auto 40px; padding: 0 16px; color: var(--dim); font-size: 14px; }
+      @media (max-width: 760px) {
+        .demo { grid-template-columns: 1fr; }
+        .phone { display: none; }
+        .mobile-play { display: inline-block !important; }
+        .qr { display: none; }
+      }
+      .mobile-play { display: none; padding: 12px 22px; border-radius: 10px; background: #3cc24f; color: #fff; font-weight: 700; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Playable ads: two demos</h1>
+      <p>
+        A 2D stealth level on PixiJS and a 3D tank arena on Three.js. Every shape and every sound is generated in code, so each build is
+        about 0.6 MB with no image or audio files. One command builds three A/B variants of each demo for eight ad networks, and a
+        headless test plays every build against that network's SDK stub.
+        <a href="https://github.com/de4er00/playable-ads">Source on GitHub</a>.
+      </p>
+    </header>
+
+    
+    <section class="demo-wrap">
+      <h2>Shadow Step: 2D stealth (PixiJS)</h2>
+      <p class="sub">Draw a path with your finger. A straight line walks into the flashlight; the route behind the crates gets you to the guard's back. The cone is a ray-cast polygon, and the same polygon decides whether you are seen.</p>
+      <div class="demo" data-demo="stealth">
+        <div class="phone"><iframe title="Shadow Step: 2D stealth (PixiJS)" allow="autoplay"></iframe></div>
+        <div class="controls">
+          <a class="mobile-play" href="stealth/">Play full screen</a>
+          <div class="row"><b>Variant</b><button data-v="a" class="on" title="camera sweep, Level 2 card">A: camera sweep, Level 2 card</button><button data-v="b" title="hand from frame one, gear card">B: hand from frame one, gear card</button><button data-v="c" title="faster sweep, longer reach">C: faster sweep, longer reach</button></div>
+          <div class="row"><b>Network</b><select><option>applovin</option><option>unity</option><option>liftoff</option><option>google</option><option>meta</option><option>moloco</option><option>mintegral</option><option>tiktok</option></select>
+            <button data-rotate>Rotate</button><button data-restart>Restart</button></div>
+          <div class="log"></div>
+          <table><thead><tr><th>Network</th><th>File</th><th>Size</th><th>Store call</th></tr></thead><tbody></tbody></table>
+          <div class="qr"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 35 35" shape-rendering="crispEdges"><path fill="#ffffff" d="M0 0h35v35H0z"/><path stroke="#17131f" d="M1 1.5h7m3 0h1m3 0h1m1 0h1m1 0h7m1 0h7M1 2.5h1m5 0h1m2 0h1m5 0h2m1 0h1m1 0h3m1 0h1m1 0h1m5 0h1M1 3.5h1m1 0h3m1 0h1m1 0h3m3 0h2m4 0h2m1 0h2m1 0h1m1 0h3m1 0h1M1 4.5h1m1 0h3m1 0h1m1 0h2m5 0h1m2 0h1m3 0h1m3 0h1m1 0h3m1 0h1M1 5.5h1m1 0h3m1 0h1m1 0h1m1 0h2m1 0h4m3 0h2m1 0h1m2 0h1m1 0h3m1 0h1M1 6.5h1m5 0h1m1 0h2m7 0h3m1 0h1m2 0h1m1 0h1m5 0h1M1 7.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M9 8.5h2m1 0h1m2 0h1m1 0h1m1 0h4M1 9.5h1m1 0h5m2 0h1m3 0h2m2 0h4m2 0h1m2 0h5M2 10.5h2m2 0h1m2 0h3m1 0h2m2 0h5m1 0h2m2 0h2m1 0h2m1 0h1M1 11.5h4m1 0h2m2 0h1m2 0h4m1 0h1m3 0h1m3 0h2m1 0h1m1 0h2M4 12.5h1m3 0h1m1 0h1m1 0h1m1 0h1m1 0h4m2 0h1m3 0h2m1 0h3M3 13.5h5m2 0h1m1 0h2m1 0h1m1 0h1m2 0h2m3 0h2m1 0h3m1 0h2M5 14.5h1m3 0h1m1 0h3m2 0h1m1 0h2m2 0h1m1 0h1m1 0h3m1 0h4M5 15.5h3m2 0h1m3 0h1m1 0h3m2 0h2m3 0h2m1 0h4M2 16.5h3m1 0h1m2 0h1m2 0h5m2 0h1m2 0h1m2 0h4m2 0h1M2 17.5h1m4 0h3m5 0h2m1 0h1m6 0h2m1 0h2m3 0h1M2 18.5h4m6 0h2m1 0h1m1 0h1m1 0h3m2 0h1m2 0h2m1 0h2m1 0h1M1 19.5h4m2 0h10m2 0h1m3 0h1m1 0h1m2 0h2m1 0h2M8 20.5h1m2 0h2m1 0h1m1 0h1m4 0h3m2 0h6m1 0h1M2 21.5h2m1 0h1m1 0h1m1 0h2m1 0h3m1 0h1m2 0h1m2 0h1m2 0h2m2 0h2M1 22.5h2m2 0h2m1 0h1m3 0h2m2 0h3m2 0h1m2 0h1m1 0h2m2 0h1m2 0h1M1 23.5h1m1 0h2m1 0h3m5 0h2m3 0h2m2 0h1m2 0h1m1 0h1m1 0h3M1 24.5h1m1 0h2m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m2 0h1m2 0h3m7 0h4M1 25.5h1m4 0h2m3 0h2m2 0h1m1 0h2m1 0h2m1 0h1m1 0h5m2 0h2M9 26.5h1m3 0h2m2 0h5m2 0h2m3 0h1m1 0h1m1 0h1M1 27.5h7m2 0h1m3 0h5m2 0h1m1 0h3m1 0h1m1 0h1m1 0h2M1 28.5h1m5 0h1m1 0h1m1 0h4m2 0h3m5 0h1m3 0h4M1 29.5h1m1 0h3m1 0h1m1 0h1m2 0h4m1 0h1m2 0h4m1 0h6M1 30.5h1m1 0h3m1 0h1m1 0h2m1 0h3m1 0h1m1 0h2m2 0h1m1 0h3m2 0h1m1 0h1m1 0h1M1 31.5h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h2m1 0h3m2 0h1m1 0h3m1 0h2m1 0h2M1 32.5h1m5 0h1m4 0h1m1 0h3m5 0h2m2 0h1m2 0h3M1 33.5h7m1 0h4m2 0h2m1 0h2m3 0h3m2 0h1m3 0h1"/></svg>
+<span>Open on a phone: the playable runs full screen there.<br/>Add <code>?fps</code> to the address for a frame-rate overlay.</span></div>
+        </div>
+      </div>
+    </section>
+    <section class="demo-wrap">
+      <h2>Tank Rush: 3D arena (Three.js)</h2>
+      <p class="sub">Hold and drag to aim; the tank fires on its own. Crates break first, then three tanks, then the bunker. Models are boxes, cylinders and an extruded hull with an inverted-hull outline, built at load time.</p>
+      <div class="demo" data-demo="tanks">
+        <div class="phone"><iframe title="Tank Rush: 3D arena (Three.js)" allow="autoplay"></iframe></div>
+        <div class="controls">
+          <a class="mobile-play" href="tanks/">Play full screen</a>
+          <div class="row"><b>Variant</b><button data-v="a" class="on" title="fly-in camera, Level 2 card">A: fly-in camera, Level 2 card</button><button data-v="b" title="no fly-in, double barrel card">B: no fly-in, double barrel card</button><button data-v="c" title="tougher enemies, faster fire">C: tougher enemies, faster fire</button></div>
+          <div class="row"><b>Network</b><select><option>applovin</option><option>unity</option><option>liftoff</option><option>google</option><option>meta</option><option>moloco</option><option>mintegral</option><option>tiktok</option></select>
+            <button data-rotate>Rotate</button><button data-restart>Restart</button></div>
+          <div class="log"></div>
+          <table><thead><tr><th>Network</th><th>File</th><th>Size</th><th>Store call</th></tr></thead><tbody></tbody></table>
+          <div class="qr"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 35 35" shape-rendering="crispEdges"><path fill="#ffffff" d="M0 0h35v35H0z"/><path stroke="#17131f" d="M1 1.5h7m3 0h3m1 0h1m1 0h1m1 0h3m1 0h3m1 0h7M1 2.5h1m5 0h1m8 0h2m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m5 0h1M1 3.5h1m1 0h3m1 0h1m1 0h1m1 0h1m3 0h2m4 0h5m1 0h1m1 0h3m1 0h1M1 4.5h1m1 0h3m1 0h1m1 0h1m6 0h1m2 0h1m2 0h1m2 0h1m1 0h1m1 0h3m1 0h1M1 5.5h1m1 0h3m1 0h1m1 0h2m3 0h4m3 0h2m1 0h2m1 0h1m1 0h3m1 0h1M1 6.5h1m5 0h1m1 0h3m6 0h3m1 0h1m4 0h1m5 0h1M1 7.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M9 8.5h5m1 0h1m1 0h1m1 0h4m1 0h2M1 9.5h1m1 0h5m2 0h1m1 0h1m1 0h2m2 0h4m5 0h5M2 10.5h4m2 0h1m5 0h1m2 0h5m1 0h2m2 0h2m1 0h2m1 0h1M1 11.5h1m1 0h1m1 0h1m1 0h1m3 0h1m2 0h3m1 0h1m4 0h1m2 0h2m1 0h1m1 0h2M1 12.5h1m2 0h3m4 0h2m1 0h1m1 0h4m6 0h2m1 0h3M1 13.5h2m2 0h4m2 0h1m1 0h1m1 0h1m1 0h1m2 0h4m2 0h1m1 0h3m1 0h2M2 14.5h1m2 0h2m3 0h1m1 0h3m1 0h1m1 0h2m2 0h1m1 0h1m1 0h3m1 0h4M1 15.5h2m1 0h1m2 0h4m2 0h6m2 0h2m3 0h2m1 0h4M1 16.5h1m1 0h1m2 0h1m3 0h5m1 0h1m2 0h1m2 0h1m1 0h5m2 0h1M3 17.5h3m1 0h1m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m5 0h3m1 0h2m3 0h1M1 18.5h2m2 0h2m2 0h1m1 0h2m4 0h1m1 0h4m1 0h1m2 0h2m1 0h2m1 0h1M1 19.5h1m1 0h2m2 0h2m2 0h2m1 0h1m1 0h1m2 0h1m2 0h1m2 0h2m1 0h2m1 0h2M1 20.5h1m1 0h2m4 0h2m2 0h1m2 0h1m4 0h3m4 0h4m1 0h1M1 21.5h2m1 0h1m2 0h4m1 0h5m2 0h1m2 0h1m2 0h2m2 0h2M1 22.5h3m5 0h2m2 0h1m2 0h3m2 0h1m1 0h2m2 0h1m2 0h1m2 0h1M1 23.5h1m2 0h1m1 0h4m2 0h4m3 0h2m2 0h1m1 0h2m1 0h1m1 0h3M1 24.5h1m2 0h3m3 0h1m2 0h3m1 0h1m2 0h3m1 0h1m5 0h3M1 25.5h1m1 0h5m1 0h2m1 0h4m1 0h2m1 0h2m1 0h7m2 0h2M9 26.5h2m1 0h1m1 0h1m2 0h5m2 0h2m3 0h1m1 0h1m1 0h1M1 27.5h7m2 0h1m3 0h1m1 0h3m2 0h1m1 0h3m1 0h1m1 0h1m1 0h2M1 28.5h1m5 0h1m1 0h1m1 0h1m1 0h2m2 0h3m5 0h1m3 0h4M1 29.5h1m1 0h3m1 0h1m1 0h1m2 0h4m1 0h1m2 0h4m1 0h6M1 30.5h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h1m2 0h1m1 0h2m2 0h1m1 0h3m2 0h1m1 0h1m1 0h1M1 31.5h1m1 0h3m1 0h1m1 0h2m1 0h1m3 0h3m2 0h1m1 0h3m1 0h2m1 0h2M1 32.5h1m5 0h1m2 0h1m1 0h3m1 0h1m5 0h2m5 0h3M1 33.5h7m1 0h1m2 0h2m1 0h2m1 0h2m3 0h4m1 0h1m3 0h1"/></svg>
+<span>Open on a phone: the playable runs full screen there.<br/>Add <code>?fps</code> to the address for a frame-rate overlay.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Both games are concepts made for this portfolio; the names, art and store links are placeholders.
+      Sizes are the real files from <code>npm run build:all</code>. Frame rates are listed in the README only for devices they were measured on.
+    </footer>
+
+    <script>
+      const sizes = [{"demo":"stealth","variant":"a","network":"applovin","file":"index.html","size":590142,"cta":"mraid.open(url)"},{"demo":"stealth","variant":"a","network":"unity","file":"index.html","size":590139,"cta":"mraid.open(url)"},{"demo":"stealth","variant":"a","network":"liftoff","file":"index.html","size":590141,"cta":"Liftoff.open()"},{"demo":"stealth","variant":"a","network":"google","file":"stealth_a_google.zip","size":179537,"cta":"ExitApi.exit()"},{"demo":"stealth","variant":"a","network":"meta","file":"index.html","size":590105,"cta":"FbPlayableAd.onCTAClick()"},{"demo":"stealth","variant":"a","network":"moloco","file":"index.html","size":590107,"cta":"FbPlayableAd.onCTAClick()"},{"demo":"stealth","variant":"a","network":"mintegral","file":"stealth_a_mintegral.zip","size":179620,"cta":"window.install()"},{"demo":"stealth","variant":"a","network":"tiktok","file":"stealth_a_tiktok.zip","size":179654,"cta":"window.openAppStore()"},{"demo":"stealth","variant":"b","network":"applovin","file":"index.html","size":590142,"cta":"mraid.open(url)"},{"demo":"stealth","variant":"b","network":"unity","file":"index.html","size":590139,"cta":"mraid.open(url)"},{"demo":"stealth","variant":"b","network":"liftoff","file":"index.html","size":590141,"cta":"Liftoff.open()"},{"demo":"stealth","variant":"b","network":"google","file":"stealth_b_google.zip","size":179538,"cta":"ExitApi.exit()"},{"demo":"stealth","variant":"b","network":"meta","file":"index.html","size":590105,"cta":"FbPlayableAd.onCTAClick()"},{"demo":"stealth","variant":"b","network":"moloco","file":"index.html","size":590107,"cta":"FbPlayableAd.onCTAClick()"},{"demo":"stealth","variant":"b","network":"mintegral","file":"stealth_b_mintegral.zip","size":179621,"cta":"window.install()"},{"demo":"stealth","variant":"b","network":"tiktok","file":"stealth_b_tiktok.zip","size":179654,"cta":"window.openAppStore()"},{"demo":"stealth","variant":"c","network":"applovin","file":"index.html","size":590142,"cta":"mraid.open(url)"},{"demo":"stealth","variant":"c","network":"unity","file":"index.html","size":590139,"cta":"mraid.open(url)"},{"demo":"stealth","variant":"c","network":"liftoff","file":"index.html","size":590141,"cta":"Liftoff.open()"},{"demo":"stealth","variant":"c","network":"google","file":"stealth_c_google.zip","size":179537,"cta":"ExitApi.exit()"},{"demo":"stealth","variant":"c","network":"meta","file":"index.html","size":590105,"cta":"FbPlayableAd.onCTAClick()"},{"demo":"stealth","variant":"c","network":"moloco","file":"index.html","size":590107,"cta":"FbPlayableAd.onCTAClick()"},{"demo":"stealth","variant":"c","network":"mintegral","file":"stealth_c_mintegral.zip","size":179620,"cta":"window.install()"},{"demo":"stealth","variant":"c","network":"tiktok","file":"stealth_c_tiktok.zip","size":179653,"cta":"window.openAppStore()"},{"demo":"tanks","variant":"a","network":"applovin","file":"index.html","size":591298,"cta":"mraid.open(url)"},{"demo":"tanks","variant":"a","network":"unity","file":"index.html","size":591295,"cta":"mraid.open(url)"},{"demo":"tanks","variant":"a","network":"liftoff","file":"index.html","size":591297,"cta":"Liftoff.open()"},{"demo":"tanks","variant":"a","network":"google","file":"tanks_a_google.zip","size":156737,"cta":"ExitApi.exit()"},{"demo":"tanks","variant":"a","network":"meta","file":"index.html","size":591261,"cta":"FbPlayableAd.onCTAClick()"},{"demo":"tanks","variant":"a","network":"moloco","file":"index.html","size":591263,"cta":"FbPlayableAd.onCTAClick()"},{"demo":"tanks","variant":"a","network":"mintegral","file":"tanks_a_mintegral.zip","size":156820,"cta":"window.install()"},{"demo":"tanks","variant":"a","network":"tiktok","file":"tanks_a_tiktok.zip","size":156861,"cta":"window.openAppStore()"},{"demo":"tanks","variant":"b","network":"applovin","file":"index.html","size":591298,"cta":"mraid.open(url)"},{"demo":"tanks","variant":"b","network":"unity","file":"index.html","size":591295,"cta":"mraid.open(url)"},{"demo":"tanks","variant":"b","network":"liftoff","file":"index.html","size":591297,"cta":"Liftoff.open()"},{"demo":"tanks","variant":"b","network":"google","file":"tanks_b_google.zip","size":156737,"cta":"ExitApi.exit()"},{"demo":"tanks","variant":"b","network":"meta","file":"index.html","size":591261,"cta":"FbPlayableAd.onCTAClick()"},{"demo":"tanks","variant":"b","network":"moloco","file":"index.html","size":591263,"cta":"FbPlayableAd.onCTAClick()"},{"demo":"tanks","variant":"b","network":"mintegral","file":"tanks_b_mintegral.zip","size":156820,"cta":"window.install()"},{"demo":"tanks","variant":"b","network":"tiktok","file":"tanks_b_tiktok.zip","size":156861,"cta":"window.openAppStore()"},{"demo":"tanks","variant":"c","network":"applovin","file":"index.html","size":591298,"cta":"mraid.open(url)"},{"demo":"tanks","variant":"c","network":"unity","file":"index.html","size":591295,"cta":"mraid.open(url)"},{"demo":"tanks","variant":"c","network":"liftoff","file":"index.html","size":591297,"cta":"Liftoff.open()"},{"demo":"tanks","variant":"c","network":"google","file":"tanks_c_google.zip","size":156737,"cta":"ExitApi.exit()"},{"demo":"tanks","variant":"c","network":"meta","file":"index.html","size":591261,"cta":"FbPlayableAd.onCTAClick()"},{"demo":"tanks","variant":"c","network":"moloco","file":"index.html","size":591263,"cta":"FbPlayableAd.onCTAClick()"},{"demo":"tanks","variant":"c","network":"mintegral","file":"tanks_c_mintegral.zip","size":156820,"cta":"window.install()"},{"demo":"tanks","variant":"c","network":"tiktok","file":"tanks_c_tiktok.zip","size":156861,"cta":"window.openAppStore()"}];
+      for (const demo of document.querySelectorAll(".demo")) {
+        const id = demo.dataset.demo;
+        const phone = demo.querySelector(".phone");
+        const frame = demo.querySelector("iframe");
+        const log = demo.querySelector(".log");
+        const state = { v: "a", net: "applovin", land: false };
+        const load = () => {
+          log.textContent = "";
+          frame.src = `${id}/index.html?v=${state.v}&net=${state.net}&t=${Date.now()}`;
+        };
+        const size = () => {
+          const [w, h] = state.land ? [568, 300] : [300, 568];
+          phone.style.width = `${w + 20}px`;
+          phone.style.height = `${h + 20}px`;
+        };
+        demo.querySelectorAll("[data-v]").forEach((b) =>
+          b.addEventListener("click", () => {
+            state.v = b.dataset.v;
+            demo.querySelectorAll("[data-v]").forEach((x) => x.classList.toggle("on", x === b));
+            load();
+          }),
+        );
+        demo.querySelector("select").addEventListener("change", (e) => {
+          state.net = e.target.value;
+          load();
+          table();
+        });
+        demo.querySelector("[data-rotate]").addEventListener("click", () => {
+          state.land = !state.land;
+          size();
+        });
+        demo.querySelector("[data-restart]").addEventListener("click", load);
+        addEventListener("message", (e) => {
+          if (e.source !== frame.contentWindow || !e.data) return;
+          if (e.data.type === "network-call") log.textContent += `${new Date().toLocaleTimeString()}  ${e.data.network}: ${e.data.call}\n`;
+        });
+        const table = () => {
+          const rows = sizes.filter((r) => r.demo === id && r.variant === state.v);
+          demo.querySelector("tbody").innerHTML = rows
+            .map((r) => `<tr${r.network === state.net ? ' style="color:#7cde45"' : ""}><td>${r.network}</td><td>${r.file}</td><td>${(r.size / 1024).toFixed(0)} KB</td><td><code>${r.cta}</code></td></tr>`)
+            .join("");
+        };
+        size();
+        load();
+        table();
+      }
+    </script>
+  </body>
+</html>

@@ -58,6 +58,7 @@ const report = [
   "|---|---|---|---|---|---|",
   ...rows.map((r) => `| ${r.demo} | ${r.variant} | ${r.network} | ${r.file} | ${kb(r.size)} | \`${r.cta}\` |`),
 ].join("\n");
+writeFileSync(join(root, "dist", "report.json"), JSON.stringify(rows, null, 1));
 writeFileSync(join(root, "dist", "report.md"), `# Build report\n\nBudget: ${kb(BUDGET)} per file (Meta's single-HTML limit).\n\n${report}\n`);
 console.log(`\n${rows.length} files, largest ${kb(Math.max(...rows.map((r) => r.size)))}. Report: dist/report.md`);
 if (failures.length) {

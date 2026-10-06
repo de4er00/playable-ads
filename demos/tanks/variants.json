@@ -1,0 +1,5 @@
+{
+  "a": { "hook": "flyin", "difficulty": "normal", "endcard": "level2" },
+  "b": { "hook": "instant", "difficulty": "normal", "endcard": "upgrade" },
+  "c": { "hook": "flyin", "difficulty": "hard", "endcard": "level2" }
+}

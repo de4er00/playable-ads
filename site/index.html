@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playable ads — two demos</title>
+    <style>
+      :root { --bg: #17131f; --panel: #221c2e; --line: #3a3150; --text: #ece7f5; --dim: #a59bb8; --accent: #7cde45; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+      a { color: var(--accent); }
+      header, section { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+      header { padding-top: 40px; }
+      h1 { font-size: 30px; margin: 0 0 8px; }
+      header p { color: var(--dim); max-width: 720px; margin: 0; }
+      section { margin-top: 44px; }
+      h2 { font-size: 22px; margin: 0 0 4px; }
+      .sub { color: var(--dim); margin: 0 0 16px; }
+      .demo { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: start; }
+      .phone { position: relative; border: 10px solid #0b0910; border-radius: 34px; background: #000; box-shadow: 0 10px 40px rgba(0,0,0,.5); overflow: hidden; transition: width .25s, height .25s; }
+      .phone iframe { display: block; width: 100%; height: 100%; border: 0; }
+      .controls { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .row b { width: 92px; color: var(--dim); font-weight: 600; }
+      button, select { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+      button.on { border-color: var(--accent); color: var(--accent); }
+      .log { min-height: 92px; max-height: 140px; overflow: auto; padding: 10px 12px; background: #0f0c15; border: 1px solid var(--line); border-radius: 8px; font: 13px/1.5 ui-monospace, Consolas, monospace; color: var(--accent); white-space: pre-wrap; }
+      .log:empty::before { content: "CTA calls appear here: finish the level or press PLAY NOW after touching the game."; color: var(--dim); }
+      table { border-collapse: collapse; width: 100%; font-size: 14px; }
+      th, td { text-align: left; padding: 5px 10px 5px 0; border-bottom: 1px solid var(--line); }
+      th { color: var(--dim); font-weight: 600; }
+      code { font: 13px ui-monospace, Consolas, monospace; color: #e8d6ff; }
+      .qr { display: flex; gap: 14px; align-items: center; color: var(--dim); font-size: 14px; }
+      .qr svg { width: 104px; height: 104px; background: #fff; border-radius: 8px; padding: 4px; }
+      footer { max-width: 1080px; margin: 56px auto 40px; padding: 0 16px; color: var(--dim); font-size: 14px; }
+      @media (max-width: 760px) {
+        .demo { grid-template-columns: 1fr; }
+        .phone { display: none; }
+        .mobile-play { display: inline-block !important; }
+        .qr { display: none; }
+      }
+      .mobile-play { display: none; padding: 12px 22px; border-radius: 10px; background: #3cc24f; color: #fff; font-weight: 700; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Playable ads: two demos</h1>
+      <p>
+        A 2D stealth level on PixiJS and a 3D tank arena on Three.js. Every shape and every sound is generated in code, so each build is
+        about 0.6 MB with no image or audio files. One command builds three A/B variants of each demo for eight ad networks, and a
+        headless test plays every build against that network's SDK stub.
+        <a href="__REPO__">Source on GitHub</a>.
+      </p>
+    </header>
+
+    __DEMOS__
+
+    <footer>
+      Both games are concepts made for this portfolio; the names, art and store links are placeholders.
+      Sizes are the real files from <code>npm run build:all</code>. Frame rates are listed in the README only for devices they were measured on.
+    </footer>
+
+    <script>
+      const sizes = __SIZES__;
+      for (const demo of document.querySelectorAll(".demo")) {
+        const id = demo.dataset.demo;
+        const phone = demo.querySelector(".phone");
+        const frame = demo.querySelector("iframe");
+        const log = demo.querySelector(".log");
+        const state = { v: "a", net: "applovin", land: false };
+        const load = () => {
+          log.textContent = "";
+          frame.src = `${id}/index.html?v=${state.v}&net=${state.net}&t=${Date.now()}`;
+        };
+        const size = () => {
+          const [w, h] = state.land ? [568, 300] : [300, 568];
+          phone.style.width = `${w + 20}px`;
+          phone.style.height = `${h + 20}px`;
+        };
+        demo.querySelectorAll("[data-v]").forEach((b) =>
+          b.addEventListener("click", () => {
+            state.v = b.dataset.v;
+            demo.querySelectorAll("[data-v]").forEach((x) => x.classList.toggle("on", x === b));
+            load();
+          }),
+        );
+        demo.querySelector("select").addEventListener("change", (e) => {
+          state.net = e.target.value;
+          load();
+          table();
+        });
+        demo.querySelector("[data-rotate]").addEventListener("click", () => {
+          state.land = !state.land;
+          size();
+        });
+        demo.querySelector("[data-restart]").addEventListener("click", load);
+        addEventListener("message", (e) => {
+          if (e.source !== frame.contentWindow || !e.data) return;
+          if (e.data.type === "network-call") log.textContent += `${new Date().toLocaleTimeString()}  ${e.data.network}: ${e.data.call}\n`;
+        });
+        const table = () => {
+          const rows = sizes.filter((r) => r.demo === id && r.variant === state.v);
+          demo.querySelector("tbody").innerHTML = rows
+            .map((r) => `<tr${r.network === state.net ? ' style="color:#7cde45"' : ""}><td>${r.network}</td><td>${r.file}</td><td>${(r.size / 1024).toFixed(0)} KB</td><td><code>${r.cta}</code></td></tr>`)
+            .join("");
+        };
+        size();
+        load();
+        table();
+      }
+    </script>
+  </body>
+</html>

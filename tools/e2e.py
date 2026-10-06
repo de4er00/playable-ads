@@ -109,7 +109,7 @@ def wait_state(page: Page, wanted: str, timeout: float) -> bool:
     return False
 
 
-def check_build(browser, network: str, entry: Path, viewport: dict, shots: Path | None, tag: str) -> list[str]:
+def check_build(browser, demo: str, network: str, entry: Path, viewport: dict, shots: Path | None, tag: str) -> list[str]:
     problems: list[str] = []
     page = browser.new_page(viewport=viewport, device_scale_factor=1)
     errors: list[str] = []
@@ -139,7 +139,7 @@ def check_build(browser, network: str, entry: Path, viewport: dict, shots: Path 
         if page.evaluate("window.__playable.game.state") != "intro" or page.evaluate("window.__playable.game.stateTime") > 0:
             problems.append("started before the ad was viewable")
         page.evaluate("window.__fireViewable(true)")
-    if not wait_state(page, "await", 6):
+    if not wait_state(page, READY[demo], 6):
         problems.append(f"never reached the first input (state {state(page)})")
     if shots:
         page.screenshot(path=str(shots / f"{tag}_1_start.png"))
@@ -148,13 +148,25 @@ def check_build(browser, network: str, entry: Path, viewport: dict, shots: Path 
         problems.append("AudioContext created before the first touch")
 
     # First tap lands on PLAY NOW: it must not reach the store.
-    cta_box = page.evaluate("(() => { const b = window.__playable.game.hud.cta.getBounds(); return {x: b.x + b.width / 2, y: b.y + b.height / 2}; })()")
+    cta_box = page.evaluate("window.__playable.game.ctaPoint()")
     page.mouse.click(cta_box["x"], cta_box["y"])
     time.sleep(0.2)
     store_calls = [c for c in page.evaluate("window.__calls") if c == EXPECTED_CTA[network]]
     if store_calls:
         problems.append("first tap opened the store")
 
+    problems += PLAY[demo](page, network, viewport, shots, tag)
+
+    if external:
+        problems.append(f"external requests: {external}")
+    if errors:
+        problems.append(f"console errors: {errors[:3]}")
+    page.close()
+    return problems
+
+
+def play_stealth(page: Page, network: str, viewport: dict, shots: Path | None, tag: str) -> list[str]:
+    problems: list[str] = []
     # Straight up the middle: the flashlight must catch it.
     drag(page, [(360, 860), (370, 600), (400, 420)])
     if not wait_state(page, "spotted", 5):
@@ -186,37 +198,70 @@ def check_build(browser, network: str, entry: Path, viewport: dict, shots: Path 
         if network == "mintegral" and ("gameReady" not in calls or "gameEnd" not in calls):
             problems.append(f"Mintegral hooks missing (calls {calls})")
 
-    if external:
-        problems.append(f"external requests: {external}")
-    if errors:
-        problems.append(f"console errors: {errors[:3]}")
-    page.close()
     return problems
+
+
+def play_tanks(page: Page, network: str, viewport: dict, shots: Path | None, tag: str) -> list[str]:
+    problems: list[str] = []
+    for i in range(3):
+        end = time.time() + 10
+        while time.time() < end and page.evaluate(f"window.__playable.game.enemyAlive({i})"):
+            p = page.evaluate(f"window.__playable.game.enemyScreen({i})")
+            page.mouse.move(p["x"], p["y"])
+            page.mouse.down()
+            time.sleep(0.3)
+        page.mouse.up()
+        if page.evaluate(f"window.__playable.game.enemyAlive({i})"):
+            problems.append(f"enemy {i} survived 10 s of fire")
+        if i == 0 and shots:
+            page.screenshot(path=str(shots / f"{tag}_2_fight.png"))
+    if page.evaluate("window.__audioContexts") != 1:
+        problems.append("no AudioContext after the first touch")
+    if not wait_state(page, "end", 6):
+        problems.append(f"no end card after the last enemy (state {state(page)})")
+        return problems
+    time.sleep(0.6)
+    if shots:
+        page.screenshot(path=str(shots / f"{tag}_4_end.png"))
+    page.mouse.click(viewport["width"] / 2, viewport["height"] / 2)
+    time.sleep(0.2)
+    calls = page.evaluate("window.__calls")
+    if EXPECTED_CTA[network] not in calls:
+        problems.append(f"end card tap did not call {EXPECTED_CTA[network]} (calls {calls})")
+    if network == "mintegral" and ("gameReady" not in calls or "gameEnd" not in calls):
+        problems.append(f"Mintegral hooks missing (calls {calls})")
+    return problems
+
+
+READY = {"stealth": "await", "tanks": "play"}
+PLAY = {"stealth": play_stealth, "tanks": play_tanks}
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--demo", default="stealth")
+    ap.add_argument("--demo", nargs="*", default=["stealth", "tanks"])
     ap.add_argument("--shots", type=Path)
     args = ap.parse_args()
     if args.shots:
         args.shots.mkdir(parents=True, exist_ok=True)
     jobs = [("a", n) for n in EXPECTED_CTA] + [("b", "applovin"), ("c", "applovin")]
     failed = 0
+    total = 0
     with sync_playwright() as p, tempfile.TemporaryDirectory() as tmp:
-        browser = p.chromium.launch(args=["--force-color-profile=srgb", "--autoplay-policy=no-user-gesture-required"])
-        for variant, network in jobs:
-            entry = entry_for(DIST / args.demo / variant / network, Path(tmp))
+        browser = p.chromium.launch(args=["--force-color-profile=srgb", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
+        for demo, variant, network in [(d, v, n) for d in args.demo for v, n in jobs]:
+            entry = entry_for(DIST / demo / variant / network, Path(tmp) / demo)
             for orient, vp in (("portrait", {"width": 390, "height": 844}), ("landscape", {"width": 844, "height": 390})):
                 if orient == "landscape" and not (variant == "a" and network in ("applovin", "google")):
                     continue
-                tag = f"{args.demo}_{variant}_{network}_{orient}"
-                problems = check_build(browser, network, entry, vp, args.shots, tag)
+                tag = f"{demo}_{variant}_{network}_{orient}"
+                problems = check_build(browser, demo, network, entry, vp, args.shots, tag)
+                total += 1
                 status = "ok" if not problems else "FAIL"
                 failed += bool(problems)
                 print(f"{status:4s} {tag}" + ("" if not problems else "\n     " + "\n     ".join(problems)))
         browser.close()
-    print(f"\n{len(jobs) + 2 - failed} passed, {failed} failed")
+    print(f"\n{total - failed} passed, {failed} failed")
     return 1 if failed else 0
 
 

@@ -1,4 +1,4 @@
-// Per-network packaging rules, from each network's spec (see docs/networks.md for sources).
+// Per-network packaging rules, from each network's spec (see NETWORKS.md for sources).
 import { strToU8, zipSync } from "fflate";
 
 export const BUDGET = 2 * 1024 * 1024; // Meta's single-HTML limit, the strictest of the eight
