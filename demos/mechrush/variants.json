@@ -1,0 +1,5 @@
+{
+  "a": { "outcome": "win", "quickStart": false },
+  "b": { "outcome": "close", "quickStart": false },
+  "c": { "outcome": "win", "quickStart": true }
+}

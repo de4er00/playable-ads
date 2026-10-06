@@ -1,7 +1,7 @@
 // Every sound is synthesised, so the build carries zero audio bytes.
 // Networks forbid sound before the first touch, so the AudioContext is not even created until unlock().
 
-export type Sound = "tap" | "step" | "alert" | "fail" | "whoosh" | "hit" | "coin" | "win" | "shot" | "boom";
+export type Sound = "tap" | "step" | "alert" | "fail" | "whoosh" | "hit" | "coin" | "win" | "shot" | "boom" | "gate" | "card" | "slam";
 
 export interface Audio {
   readonly unlocked: boolean;
@@ -81,6 +81,15 @@ export function createAudio(win: any): Audio {
     boom: () => {
       burst(600, 0.9, 0.6, 0.3);
       tone("sine", 90, 30, 0.8, 0.5);
+    },
+    gate: () => {
+      burst(4000, 0.18, 0.12, 2);
+      [880, 1175, 1568].forEach((f, i) => tone("triangle", f, f, 0.16, 0.1, i * 0.05));
+    },
+    card: () => [1319, 1568, 1976, 2637].forEach((f, i) => tone("sine", f, f * 1.01, 0.3, 0.07, i * 0.06)),
+    slam: () => {
+      burst(300, 0.7, 0.7, 0.4);
+      tone("sine", 70, 28, 0.6, 0.6);
     },
   };
 
