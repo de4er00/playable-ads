@@ -3,6 +3,8 @@
 import {
   AdditiveBlending,
   CanvasTexture,
+  DoubleSide,
+  SphereGeometry,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -24,7 +26,7 @@ import type { Cta } from "../../../kit/cta";
 import { Fx } from "./fx";
 import { C, barricade, blobTexture, bossMech, drawLabel, gatePanel, glowMaterial, glowTexture, litMaterial, miniMech } from "./models";
 import { atmosphere, lights } from "./scene";
-import { type Card, type Outcome, ROAD_HALF, Sim, type SimEvent, gateLabel } from "./sim";
+import { type Card, type Outcome, ROAD_HALF, Sim, type SimEvent, gateLabel, squadRadius } from "./sim";
 import { Ui } from "./ui";
 import { CAP, Horde, Shadows, Squad } from "./units";
 import { buildWorld } from "./world";
@@ -78,6 +80,9 @@ export class Game {
   private overTimer = -1;
   private prevZ = 0;
   private picks: Card[] = [];
+  /** Shield drone: a glowing dome over the squad while it still has hits to absorb. */
+  private dome = new Group();
+  private domeFlash = 0;
 
   constructor(private variant: Variant, private audio: Audio, private cta: Cta) {
     this.renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -126,6 +131,12 @@ export class Game {
     this.boss.group.scale.setScalar(1.15);
     this.scene.add(this.boss.group);
     this.buildHero(glow);
+    const hemi = new SphereGeometry(1, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+    const skin = new MeshBasicMaterial({ color: 0x63f5ff, transparent: true, opacity: 0.18, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, toneMapped: false });
+    const lattice = new MeshBasicMaterial({ color: 0xbffcff, transparent: true, opacity: 0.4, wireframe: true, blending: AdditiveBlending, depthWrite: false, toneMapped: false });
+    this.dome.add(new Mesh(hemi, skin), new Mesh(hemi, lattice));
+    this.dome.visible = false;
+    this.scene.add(this.dome);
   }
 
   async init() {
@@ -343,10 +354,25 @@ export class Game {
           } else this.bossDamage += ev.dmg;
           this.fx.flash(ev.x * 0.6, 3 + Math.random() * 3, this.sim.boss.z + 2.2, ev.rocket ? 0xffb35a : 0xbff8ff, ev.rocket ? 2.4 : 1, 0.12);
           if (ev.rocket) this.hitstop = Math.max(this.hitstop, 0.045);
+        } else if (ev.rocket) {
+          this.fx.flash(ev.x, 0.8, ev.z, 0xffb35a, 2.6, 0.22);
+          this.fx.burst(ev.x, 0.6, ev.z, 0xff8a2a, 4, 0.12, 5);
         } else this.fx.flash(ev.x, 0.5, ev.z, 0xbff8ff, 0.7, 0.1);
         break;
       case "lost":
         this.fx.flash(ev.x, 0.6, ev.z, 0xff8a6a, 1.4, 0.15);
+        break;
+      case "shielded":
+        // the dome lights up where the drone hit it; the last hit breaks it into shards
+        this.domeFlash = 1;
+        this.fx.flash(ev.x, 0.9, ev.z, 0x9ffcff, 2.2, 0.18);
+        this.audio.play("tap");
+        if (ev.left === 0) {
+          this.fx.burst(this.sim.x, 1.4, this.sim.z, 0x63f5ff, 30, 0.14, 6);
+          this.fx.ring(this.sim.x, this.sim.z, 0x63f5ff, 5, 0.5);
+          const p = this.project(this.sim.x, 2.6, this.sim.z);
+          this.ui.popText(p.x, p.y - 40, "SHIELD DOWN", 0x7cf0ff, 40);
+        }
         break;
       case "blockHit":
         this.drawBlockLabel(ev.hp);
@@ -388,6 +414,16 @@ export class Game {
     this.fx.flash(this.sim.x, 1, this.sim.z, 0xffe27a, 6, 0.35);
     const p = this.project(this.sim.x, 2.6, this.sim.z);
     this.ui.popText(p.x, p.y - 60, "LV+1", 0xffd34a);
+    // the card's effect is named and shown at once, then kept on screen
+    if (card === "barrel") {
+      this.ui.showBanner("TWIN BARRELS!", 0xffd34a, "+60% damage");
+      this.fx.goldTracers();
+    } else if (card === "rockets") this.ui.showBanner("ROCKET POD!", 0xd08bff, "Splash rockets");
+    else {
+      this.ui.showBanner("SHIELD DRONE!", 0x7cf0ff, "Blocks 12 hits");
+      this.dome.visible = true;
+      this.domeFlash = 1;
+    }
     this.audio.play("win");
     this.enter("run");
   }
@@ -445,6 +481,21 @@ export class Game {
   }
 
   private animateProps(dt: number) {
+    if (this.dome.visible) {
+      if (this.sim.shield <= 0) this.dome.visible = false;
+      this.domeFlash = Math.max(0, this.domeFlash - dt * 3);
+      const r = squadRadius(this.sim.count) + 0.9;
+      this.dome.position.set(this.sim.x, 0.05, this.sim.z);
+      this.dome.scale.set(r, r * 0.75, r);
+      this.dome.rotation.y += dt * 0.6;
+      const [skin, lattice] = this.dome.children.map((m) => (m as Mesh).material as MeshBasicMaterial);
+      skin.opacity = 0.14 + this.domeFlash * 0.4;
+      lattice.opacity = 0.3 + this.domeFlash * 0.6 + Math.sin(this.time * 6) * 0.05;
+    }
+    const perk = this.picks[0];
+    if (perk === "shield") this.ui.setPerk(this.sim.shield > 0 ? `SHIELD ${this.sim.shield}` : "", 0x1c8fd6);
+    else if (perk === "barrel") this.ui.setPerk("DMG x1.6", 0xd99a14);
+    else if (perk === "rockets") this.ui.setPerk("ROCKETS", 0x6a2bd6);
     for (const g of this.gates) {
       if (g.used && g.group.visible) {
         g.sink += dt;

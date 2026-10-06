@@ -45,6 +45,8 @@ interface Floater {
   vy: number;
   life: number;
   max: number;
+  /** Size the pop animation scales around (below 1 for words shrunk to fit). */
+  base?: number;
 }
 
 interface Flyer {
@@ -61,6 +63,9 @@ export class Ui {
   cta!: Button;
   private logo = new Container();
   private pill = new Container();
+  private perk = new Container();
+  private perkText!: Text;
+  private perkBack = new Graphics();
   private pillText!: Text;
   private nutIcon = new Graphics();
   private badge = new Container();
@@ -73,6 +78,7 @@ export class Ui {
   private hint!: Text;
   private banner = new Container();
   private bannerT = 1;
+  private bannerFit = 1;
   private floaters: Floater[] = [];
   private flyers: Flyer[] = [];
   private cards = new Container();
@@ -132,8 +138,12 @@ export class Ui {
 
     this.cards.visible = false;
     this.dim.visible = false;
+    this.perkText = text("", 17, { dropShadow: false });
+    this.perk.addChild(this.perkBack, this.perkText);
+    this.perk.visible = false;
     // overlays never take touches, so nothing decorative can swallow a tap on a card
-    for (const o of [this.badge, this.bossBar, this.banner, this.hand, this.hint, this.logo, this.pill]) o.eventMode = "none";
+    for (const o of [this.badge, this.bossBar, this.banner, this.hand, this.hint, this.logo, this.pill, this.perk]) o.eventMode = "none";
+    this.root.addChild(this.perk);
     this.root.addChild(this.dim, this.badge, this.bossBar, this.banner, this.cards, this.hand, this.hint, this.logo, this.cta, this.pill, this.endLayer);
     this.endLayer.visible = false;
   }
@@ -149,6 +159,7 @@ export class Ui {
     this.cta.base = Math.min(1, w / 360);
     this.cta.position.set(14 + 75 * this.cta.base, 72 + 70 * ls);
     this.pill.position.set(w - 78, 74);
+    this.perk.position.set(w - 78, 120);
     this.hint.position.set(w / 2, h * 0.78);
     this.hint.scale.set(Math.min(1, (w - 40) / 320));
     this.banner.position.set(w / 2, h * 0.32);
@@ -163,6 +174,17 @@ export class Ui {
   /** Right edge of the top-left HUD (the logo is the wider of the two). */
   get hudRight() {
     return Math.max(this.logo.x + 110 * this.logo.scale.x, this.cta.x + 75 * this.cta.base);
+  }
+
+  /** The active upgrade as a chip under the coin counter, so its effect stays readable. */
+  setPerk(label: string, color: number) {
+    this.perk.visible = label !== "";
+    if (!label) return;
+    if (this.perkText.text !== label) {
+      this.perkText.text = label;
+      this.perkBack.clear().roundRect(-62, -16, 124, 32, 16).fill({ color, alpha: 0.85 }).stroke({ width: 3, color: 0x101624 });
+      this.perk.scale.set(1.3);
+    }
   }
 
   setCoins(n: number) {
@@ -216,13 +238,15 @@ export class Ui {
     return Math.min(this.w - half - 8, Math.max(half + 8, x));
   }
 
-  popText(x: number, y: number, value: string, color: number) {
-    const t = text(value, 54, { fill: color, stroke: { color: 0x14213d, width: 9, join: "round" } });
+  popText(x: number, y: number, value: string, color: number, size = 54) {
+    const t = text(value, size, { fill: color, stroke: { color: 0x14213d, width: size / 6, join: "round" } });
+    // long words shrink to fit: floaters pop up to 1.2x their size
+    const base = Math.min(1, (this.w - 24) / (t.width * 1.2));
     // floaters pop up to 1.2x, so clamp the grown width
-    t.position.set(this.clampX(x, t.width * 0.6), y);
+    t.position.set(this.clampX(x, t.width * 0.6 * base), y);
     t.eventMode = "none";
     this.root.addChild(t);
-    this.floaters.push({ view: t, vy: -70, life: 0, max: 0.9 });
+    this.floaters.push({ view: t, vy: -70, life: 0, max: 0.9, base });
   }
 
   showBanner(title: string, color: number, sub = "") {
@@ -234,6 +258,7 @@ export class Ui {
       s.y = 54;
       this.banner.addChild(s);
     }
+    this.bannerFit = Math.min(1, (this.w - 24) / this.banner.width);
     this.bannerT = 0;
   }
 
@@ -294,10 +319,14 @@ export class Ui {
         outro();
       };
       for (const v of views) v.on("pointerdown", (e) => { e.stopPropagation(); finish(v.card); });
-      const start = performance.now();
+      // card-screen time: real time, but a stalled frame counts at most 0.25 s, so a hitch on a slow
+      // device can't drop the cards in and auto-pick before the player has seen them
+      let el = 0;
+      let last = performance.now();
       const intro = () => {
         const now = performance.now();
-        const el = (now - start) / 1000;
+        el += Math.min(0.25, (now - last) / 1000);
+        last = now;
         // drop-in by the clock, not by frames: a slow device sees the same timing (ease-out-back, small bounce)
         for (const v of views) {
           const k = Math.min(1, Math.max(0, (el - v.delay) / 0.5));
@@ -365,6 +394,7 @@ export class Ui {
   }
 
   update(dt: number) {
+    this.perk.scale.set(1 + (this.perk.scale.x - 1) * Math.pow(0.002, dt));
     this.cta.pulse(dt);
     this.endCta?.pulse(dt);
     this.nutIcon.scale.set(1 + (this.nutIcon.scale.x - 1) * Math.pow(0.001, dt));
@@ -374,7 +404,7 @@ export class Ui {
       this.bannerT += dt;
       const k = this.bannerT;
       const pop = k < 0.25 ? 0.4 + (k / 0.25) * 0.75 : k < 0.4 ? 1.15 - ((k - 0.25) / 0.15) * 0.15 : 1;
-      this.banner.scale.set(pop * Math.min(1, (this.w - 20) / 460));
+      this.banner.scale.set(pop * this.bannerFit);
       this.banner.alpha = k > 1.1 ? Math.max(0, 1 - (k - 1.1) / 0.3) : 1;
     }
     for (const f of this.floaters) {
@@ -383,7 +413,7 @@ export class Ui {
       f.vy *= Math.pow(0.08, dt);
       const k = f.life / f.max;
       f.view.alpha = k > 0.6 ? 1 - (k - 0.6) / 0.4 : 1;
-      f.view.scale.set(k < 0.15 ? 0.6 + (k / 0.15) * 0.6 : 1.2 - Math.min(0.2, k * 0.3));
+      f.view.scale.set((f.base ?? 1) * (k < 0.15 ? 0.6 + (k / 0.15) * 0.6 : 1.2 - Math.min(0.2, k * 0.3)));
     }
     this.floaters = this.floaters.filter((f) => {
       if (f.life < f.max) return true;

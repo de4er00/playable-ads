@@ -56,6 +56,7 @@ export type SimEvent =
   | { type: "kill"; x: number; z: number }
   | { type: "hit"; x: number; z: number; dmg: number; boss: boolean; rocket: boolean }
   | { type: "lost"; n: number; x: number; z: number }
+  | { type: "shielded"; x: number; z: number; left: number }
   | { type: "blockHit"; hp: number }
   | { type: "blockDown"; z: number }
   | { type: "pick" }
@@ -115,7 +116,8 @@ export class Sim {
   private picked = false;
   private volleyT = 0;
   private rocketT = 0;
-  private shield = 0;
+  /** Hits the shield drone still absorbs. */
+  shield = 0;
   private rng = makeRng(7);
 
   constructor(private settings: Settings) {
@@ -295,7 +297,7 @@ export class Sim {
         e.alive = false;
         if (this.shield > 0) {
           this.shield -= 1;
-          ev.push({ type: "kill", x: e.x, z: e.z });
+          ev.push({ type: "kill", x: e.x, z: e.z }, { type: "shielded", x: e.x, z: e.z, left: this.shield });
         } else {
           const n = Math.min(this.count, 1);
           this.count -= n;

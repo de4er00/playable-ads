@@ -83,12 +83,19 @@ export class Fx {
   private rings: Ring[] = [];
   /** Nuts hand over to the 2D layer after landing: world position of each collected nut. */
   onNut: (x: number, y: number, z: number) => void = () => {};
+  private tracerScale = 1;
+
+  /** Twin barrel: heavier, golden tracers for the rest of the run. */
+  goldTracers() {
+    this.tracerScale = 1.8;
+    (this.tracers.material as MeshBasicMaterial).color.set(0xffd34a);
+  }
 
   constructor(private scene: Scene, private glowTex: Texture) {
     const tracerGeo = new CylinderGeometry(0.05, 0.05, 1, 6);
     tracerGeo.rotateX(Math.PI / 2);
     this.tracers = new InstancedMesh(tracerGeo, new MeshBasicMaterial({ color: 0x8ff8ff, toneMapped: false }), 400);
-    this.rockets = new InstancedMesh(new CylinderGeometry(0.09, 0.09, 0.5, 8).rotateX(Math.PI / 2), new MeshBasicMaterial({ color: 0xffb35a, toneMapped: false }), 60);
+    this.rockets = new InstancedMesh(new CylinderGeometry(0.15, 0.15, 0.9, 8).rotateX(Math.PI / 2), new MeshBasicMaterial({ color: 0xffb35a, toneMapped: false }), 60);
     this.debris = new InstancedMesh(new BoxGeometry(1, 1, 1), new MeshStandardMaterial({ roughness: 0.6, metalness: 0.2 }), 500);
     this.nuts = new InstancedMesh(nut(), new MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.8, emissive: 0x3a2400 }), 160);
     for (const im of [this.tracers, this.rockets, this.debris, this.nuts]) {
@@ -154,11 +161,13 @@ export class Fx {
     let nr = 0;
     for (const b of sim.bullets) {
       if (b.rocket) {
-        m4.compose(v.set(b.x, 0.9, b.z), q.identity(), s.set(1, 1, 1));
+        m4.compose(v.set(b.x, 1.0, b.z), q.identity(), s.set(1, 1, 1));
         this.rockets.setMatrixAt(nr++, m4);
-        if (Math.random() < 0.5) this.flash(b.x, 0.9, b.z + 0.4, 0x9a8a7a, 0.6, 0.45, 0.6);
+        // exhaust flame right behind the rocket, smoke left along its path
+        this.flash(b.x, 1.0, b.z + 0.6, 0xffc46a, 0.9, 0.08);
+        if (Math.random() < 0.6) this.flash(b.x, 1.0, b.z + 0.8, 0x9a8a7a, 0.8, 0.5, 0.6);
       } else {
-        m4.compose(v.set(b.x, 0.62, b.z), q.identity(), s.set(1, 1, 1.4));
+        m4.compose(v.set(b.x, 0.62, b.z), q.identity(), s.set(this.tracerScale, this.tracerScale, 1.4));
         this.tracers.setMatrixAt(nt++, m4);
       }
     }

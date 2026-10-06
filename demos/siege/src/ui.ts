@@ -90,6 +90,7 @@ export class Ui {
   private hint!: Text;
   private banner = new Container();
   private bannerT = 9;
+  private bannerFit = 1;
   private floaters: Floater[] = [];
   private flyers: Flyer[] = [];
   private cards = new Container();
@@ -338,6 +339,7 @@ export class Ui {
       s.y = 50;
       this.banner.addChild(s);
     }
+    this.bannerFit = Math.min(1, (this.w - 24) / this.banner.width);
     this.bannerT = 0;
   }
 
@@ -413,10 +415,14 @@ export class Ui {
           this.onTouch();
           finish(v.card);
         });
-      const start = performance.now();
+      // card-screen time: real time, but a stalled frame counts at most 0.25 s, so a hitch on a slow
+      // device can't drop the cards in and auto-pick before the player has seen them
+      let el = 0;
+      let last = performance.now();
       const intro = () => {
         const now = performance.now();
-        const el = (now - start) / 1000;
+        el += Math.min(0.25, (now - last) / 1000);
+        last = now;
         // drop-in by the clock, not by frames: a slow device sees the same timing (ease-out-back, small bounce)
         for (const v of views) {
           const k = Math.min(1, Math.max(0, (el - v.delay) / 0.5));
@@ -505,7 +511,7 @@ export class Ui {
       this.bannerT += dt;
       const k = this.bannerT;
       const pop = k < 0.25 ? 0.4 + (k / 0.25) * 0.75 : k < 0.4 ? 1.15 - ((k - 0.25) / 0.15) * 0.15 : 1;
-      this.banner.scale.set(pop * Math.min(1, (this.w - 20) / 440));
+      this.banner.scale.set(pop * this.bannerFit);
       this.banner.alpha = k > 1.2 ? Math.max(0, 1 - (k - 1.2) / 0.3) : 1;
     } else this.banner.alpha = 0;
     for (const f of this.floaters) {
