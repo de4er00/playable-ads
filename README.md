@@ -99,7 +99,7 @@ Both demos sit on `kit/`, which handles what networks reject builds for, plus wh
 
 TypeScript, Vite with vite-plugin-singlefile, Three.js r186, PixiJS 8, vitest, fflate, and Playwright for the end-to-end checks.
 
-I wrote the code together with Claude Code as the coding agent. The game designs, the balance targets, the network rules and the tests are mine. The agent wrote much of the rendering code under my review.
+I used Claude Code as a coding assistant. The game designs, the balance targets, the network rules, the tests and the code review are mine.
 
 Both games are concepts made for this portfolio. The names and store links are placeholders.
 
