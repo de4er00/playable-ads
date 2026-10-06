@@ -1,0 +1,5 @@
+{
+  "a": { "outcome": "win", "rush": false },
+  "b": { "outcome": "close", "rush": false },
+  "c": { "outcome": "win", "rush": true }
+}

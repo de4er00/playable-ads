@@ -5,8 +5,13 @@
 
 Checks per build: no request leaves the file except the network's own SDK script; the game does not start
 before the ad is viewable (MRAID networks); no AudioContext before the first touch; the first tap does not
-open the store; a straight path gets spotted; the route behind the crates reaches the end card; the CTA
-calls the network's function; no console errors; both orientations render.
+open the store; the game answers real input (Mech Rush: dragging steers the squad; Spiral Siege: dragging a
+unit onto its twin merges them, the summon button buys a unit); a tap on an upgrade card picks it; the run
+reaches its end card and the CTA there calls the network's function; no console errors; both orientations.
+
+After the input checks the game's own frame loop is paused and game time is moved on with the build's test
+hook (fastForward, only exposed with ?e2e): a software-rendered headless browser draws about a frame a second,
+and the network rules don't depend on how fast time passes.
 """
 from __future__ import annotations
 
@@ -81,23 +86,17 @@ def entry_for(network_dir: Path, tmp: Path) -> Path:
     return found[0]
 
 
-def screen_of(page: Page, x: float, y: float) -> tuple[float, float]:
-    p = page.evaluate(f"window.__playable.game.worldToScreen({{x: {x}, y: {y}}})")
-    return p["x"], p["y"]
-
-
-def drag(page: Page, route: list[tuple[float, float]], steps: int = 6) -> None:
-    pts = [screen_of(page, x, y) for x, y in route]
-    page.mouse.move(*pts[0])
-    page.mouse.down()
-    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
-        for i in range(1, steps + 1):
-            page.mouse.move(x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps)
-    page.mouse.up()
-
-
 def state(page: Page) -> str:
     return page.evaluate("window.__playable.game.state")
+
+
+def wait_true(page: Page, js: str, timeout: float) -> bool:
+    end = time.time() + timeout
+    while time.time() < end:
+        if page.evaluate(js):
+            return True
+        time.sleep(0.05)
+    return False
 
 
 def wait_state(page: Page, wanted: str, timeout: float) -> bool:
@@ -136,11 +135,11 @@ def check_build(browser, demo: str, network: str, entry: Path, viewport: dict, s
 
     if network in MRAID_NETWORKS:
         time.sleep(1.2)
-        if page.evaluate("window.__playable.game.state") != "intro" or page.evaluate("window.__playable.game.stateTime") > 0:
+        if page.evaluate("window.__playable.game.stateTime") > 0:
             problems.append("started before the ad was viewable")
         page.evaluate("window.__fireViewable(true)")
-    if not wait_state(page, READY[demo], 6):
-        problems.append(f"never reached the first input (state {state(page)})")
+    if not wait_true(page, "window.__playable.game.stateTime > 0.3", 8):
+        problems.append(f"the game never started (state {state(page)})")
     if shots:
         page.screenshot(path=str(shots / f"{tag}_1_start.png"))
 
@@ -165,65 +164,42 @@ def check_build(browser, demo: str, network: str, entry: Path, viewport: dict, s
     return problems
 
 
-def play_stealth(page: Page, network: str, viewport: dict, shots: Path | None, tag: str) -> list[str]:
-    problems: list[str] = []
-    # Straight up the middle: the flashlight must catch it.
-    drag(page, [(360, 860), (370, 600), (400, 420)])
-    if not wait_state(page, "spotted", 5):
-        problems.append(f"straight path was not spotted (state {state(page)})")
-    elif shots:
-        time.sleep(0.25)
-        page.screenshot(path=str(shots / f"{tag}_2_spotted.png"))
-    if page.evaluate("window.__audioContexts") != 1:
-        problems.append("no AudioContext after the first touch")
-    if not wait_state(page, "await", 4):
-        problems.append("did not return to input after being spotted")
-    if shots:
-        time.sleep(1.2)
-        page.screenshot(path=str(shots / f"{tag}_3_hint.png"))
+G = "window.__playable.game"
 
-    route_pts = page.evaluate("window.__playable.route")
-    drag(page, [(p["x"], p["y"]) for p in route_pts], steps=8)
-    if not wait_state(page, "end", 12):
-        problems.append(f"route behind the crates did not finish the level (state {state(page)})")
+
+def pick_card(page: Page, demo: str, viewport: dict, index: int) -> None:
+    """Taps card `index` of the three on the upgrade screen (same layout maths as the games' ui.ts)."""
+    w, h = viewport["width"], viewport["height"]
+    portrait = h >= w
+    if demo == "siege":
+        scale = min(1, (w - 24) / 528, h * 0.62 / 300)
+        y = h * (0.48 if portrait else 0.58)
     else:
-        time.sleep(0.6)
-        if shots:
-            page.screenshot(path=str(shots / f"{tag}_4_end.png"))
-        page.mouse.click(viewport["width"] / 2, viewport["height"] / 2)
-        time.sleep(0.2)
-        calls = page.evaluate("window.__calls")
-        if EXPECTED_CTA[network] not in calls:
-            problems.append(f"end card tap did not call {EXPECTED_CTA[network]} (calls {calls})")
-        if network == "mintegral" and ("gameReady" not in calls or "gameEnd" not in calls):
-            problems.append(f"Mintegral hooks missing (calls {calls})")
-
-    return problems
+        scale = min(1, (w - 24) / 528, h * 0.7 / 300)
+        y = h * (0.48 if portrait else 0.56)
+    # wait until the cards have dropped in: a loaded headless runner can go seconds between animation frames
+    wait_true(page, f"{G}.ui.cards.children.filter(c => c.card).every(c => Math.abs(c.y - c.targetY) < 3)", 5)
+    page.mouse.click(w / 2 + (index - 1) * 176 * scale, y)
 
 
-def play_tanks(page: Page, network: str, viewport: dict, shots: Path | None, tag: str) -> list[str]:
+def finish(page: Page, network: str, viewport: dict, shots: Path | None, tag: str) -> list[str]:
+    """Runs game time to the end card, then taps it: the store call must be the network's own."""
     problems: list[str] = []
-    for i in range(3):
-        end = time.time() + 10
-        while time.time() < end and page.evaluate(f"window.__playable.game.enemyAlive({i})"):
-            p = page.evaluate(f"window.__playable.game.enemyScreen({i})")
-            page.mouse.move(p["x"], p["y"])
-            page.mouse.down()
+    page.evaluate(f"{G}.pause()")
+    end = time.time() + 90
+    while time.time() < end and state(page) != "end":
+        if state(page) == "pick":
             time.sleep(0.3)
-        page.mouse.up()
-        if page.evaluate(f"window.__playable.game.enemyAlive({i})"):
-            problems.append(f"enemy {i} survived 10 s of fire")
-        if i == 0 and shots:
-            page.screenshot(path=str(shots / f"{tag}_2_fight.png"))
-    if page.evaluate("window.__audioContexts") != 1:
-        problems.append("no AudioContext after the first touch")
-    if not wait_state(page, "end", 6):
-        problems.append(f"no end card after the last enemy (state {state(page)})")
+        else:
+            page.evaluate(f"{G}.fastForward(2)")
+    if state(page) != "end":
+        problems.append(f"no end card (state {state(page)})")
         return problems
-    time.sleep(0.6)
+    time.sleep(0.8)
+    page.evaluate(f"{G}.fastForward(0.2)")
     if shots:
         page.screenshot(path=str(shots / f"{tag}_4_end.png"))
-    page.mouse.click(viewport["width"] / 2, viewport["height"] / 2)
+    page.mouse.click(viewport["width"] / 2, viewport["height"] * 0.86)
     time.sleep(0.2)
     calls = page.evaluate("window.__calls")
     if EXPECTED_CTA[network] not in calls:
@@ -233,13 +209,91 @@ def play_tanks(page: Page, network: str, viewport: dict, shots: Path | None, tag
     return problems
 
 
-READY = {"stealth": "await", "tanks": "play"}
-PLAY = {"stealth": play_stealth, "tanks": play_tanks}
+def play_mechrush(page: Page, network: str, viewport: dict, shots: Path | None, tag: str) -> list[str]:
+    problems: list[str] = []
+    # hold the squad and drag it to the right: the squad must follow the finger
+    # (two tries: on a loaded runner the first touch can land while the intro camera is still moving)
+    for _ in range(2):
+        p = page.evaluate(f"{G}.roadToScreen({G}.sim.x, {G}.sim.z)")
+        target = page.evaluate(f"{G}.roadToScreen(2.5, {G}.sim.z)")
+        page.mouse.move(p["x"], p["y"])
+        page.mouse.down()
+        for i in range(1, 9):
+            page.mouse.move(p["x"] + (target["x"] - p["x"]) * i / 8, p["y"])
+        page.evaluate(f"{G}.fastForward(0.6)")
+        page.mouse.up()
+        x = page.evaluate(f"{G}.sim.x")
+        if x >= 0.8:
+            break
+    if x < 0.8:
+        problems.append(f"dragging did not steer the squad (x {x:.2f})")
+    if page.evaluate("window.__audioContexts") != 1:
+        problems.append("no AudioContext after the first touch")
+    if shots:
+        page.screenshot(path=str(shots / f"{tag}_2_run.png"))
+    page.evaluate(f"{G}.pause()")
+    end = time.time() + 60
+    while time.time() < end and state(page) not in ("pick", "end"):
+        page.evaluate(f"{G}.fastForward(1)")
+    if state(page) != "pick":
+        problems.append(f"no upgrade cards (state {state(page)})")
+        return problems
+    pick_card(page, "mechrush", viewport, 2)
+    if not wait_true(page, f"{G}.picks.length > 0", 4):
+        pick_card(page, "mechrush", viewport, 2)  # one retry: a frame that lands late on a loaded runner
+    if not wait_true(page, f"{G}.picks.length > 0", 4):
+        problems.append("a tap on a card did not pick it")
+    elif page.evaluate(f"{G}.picks[0]") != "rockets":
+        problems.append(f"tapped the third card, got {page.evaluate(f'{G}.picks[0]')}")
+    return problems + finish(page, network, viewport, shots, tag)
+
+
+def play_siege(page: Page, network: str, viewport: dict, shots: Path | None, tag: str) -> list[str]:
+    problems: list[str] = []
+    # drag the first unit onto its twin: they must merge into one level-2 unit
+    a = page.evaluate(f"{G}.cellToScreen(0)")
+    b = page.evaluate(f"{G}.cellToScreen(1)")
+    page.mouse.move(a["x"], a["y"])
+    page.mouse.down()
+    for i in range(1, 9):
+        page.mouse.move(a["x"] + (b["x"] - a["x"]) * i / 8, a["y"] + (b["y"] - a["y"]) * i / 8)
+    page.mouse.up()
+    levels = page.evaluate(f"{G}.sim.board.map(u => u ? u.level : 0)")
+    if levels[:2] != [0, 2]:
+        problems.append(f"dragging a unit onto its twin did not merge them (board {levels})")
+    if page.evaluate("window.__audioContexts") != 1:
+        problems.append("no AudioContext after the first touch")
+    # the summon button buys a level-1 unit (coins can't be compared: kills pay out while the game runs)
+    sp = page.evaluate(f"{G}.summonPoint()")
+    page.mouse.click(sp["x"], sp["y"])
+    if not wait_true(page, f"{G}.sim.summons === 1 && {G}.sim.board.filter(u => u).length === 2", 3):
+        problems.append("the summon button did not buy a unit")
+    page.evaluate(f"{G}.fastForward(0.4)")
+    if shots:
+        page.screenshot(path=str(shots / f"{tag}_2_board.png"))
+    page.evaluate(f"{G}.pause()")
+    end = time.time() + 60
+    while time.time() < end and state(page) not in ("pick", "end"):
+        page.evaluate(f"{G}.fastForward(1)")
+    if state(page) != "pick":
+        problems.append(f"no element cards (state {state(page)})")
+        return problems
+    pick_card(page, "siege", viewport, 0)
+    if not wait_true(page, f"{G}.sim.element !== null", 4):
+        pick_card(page, "siege", viewport, 0)
+    if not wait_true(page, f"{G}.sim.element !== null", 4):
+        problems.append("a tap on a card did not pick it")
+    elif page.evaluate(f"{G}.sim.element") != "water":
+        problems.append(f"tapped the first card, got {page.evaluate(f'{G}.sim.element')}")
+    return problems + finish(page, network, viewport, shots, tag)
+
+
+PLAY = {"mechrush": play_mechrush, "siege": play_siege}
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--demo", nargs="*", default=["stealth", "tanks"])
+    ap.add_argument("--demo", nargs="*", default=["mechrush", "siege"])
     ap.add_argument("--shots", type=Path)
     args = ap.parse_args()
     if args.shots:

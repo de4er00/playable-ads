@@ -9,7 +9,7 @@ import { BUDGET, NETWORKS, packageFor, stampHtml } from "./networks.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const only = process.argv.slice(2);
-const demos = ["stealth", "tanks"].filter((d) => existsSync(join(root, "demos", d, "src", "main.ts")) && (!only.length || only.includes(d)));
+const demos = ["mechrush", "siege"].filter((d) => existsSync(join(root, "demos", d, "src", "main.ts")) && (!only.length || only.includes(d)));
 
 async function compile(demo, variantId) {
   const outDir = join(root, ".vite", `${demo}-${variantId ?? "preview"}`);

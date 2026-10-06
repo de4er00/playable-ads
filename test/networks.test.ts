@@ -31,27 +31,27 @@ describe("network packaging", () => {
 
   it("ships a single HTML to AppLovin, Unity, Liftoff, Meta and Moloco", () => {
     for (const network of ["applovin", "unity", "liftoff", "meta", "moloco"]) {
-      const [file] = packageFor(network, stampHtml(HTML, network), "stealth_a");
+      const [file] = packageFor(network, stampHtml(HTML, network), "siege_a");
       expect(file.name).toBe("index.html");
     }
   });
 
   it("zips TikTok with index.html and config.json at the top level", () => {
-    const [file] = packageFor("tiktok", stampHtml(HTML, "tiktok"), "stealth_a");
+    const [file] = packageFor("tiktok", stampHtml(HTML, "tiktok"), "siege_a");
     const files = unzipSync(file.bytes);
     expect(Object.keys(files).sort()).toEqual(["config.json", "index.html"]);
     expect(JSON.parse(strFromU8(files["config.json"])).playable_orientation).toBe(0);
   });
 
   it("names Mintegral's archive, folder and HTML the same", () => {
-    const [file] = packageFor("mintegral", stampHtml(HTML, "mintegral"), "stealth_a");
-    expect(file.name).toBe("stealth_a.zip");
+    const [file] = packageFor("mintegral", stampHtml(HTML, "mintegral"), "siege_a");
+    expect(file.name).toBe("siege_a.zip");
     const entries = Object.keys(unzipSync(file.bytes)).filter((n) => !n.endsWith("/"));
-    expect(entries).toEqual(["stealth_a/stealth_a.html"]);
+    expect(entries).toEqual(["siege_a/siege_a.html"]);
   });
 
   it("zips Google with index.html", () => {
-    const [file] = packageFor("google", stampHtml(HTML, "google"), "stealth_a");
+    const [file] = packageFor("google", stampHtml(HTML, "google"), "siege_a");
     expect(Object.keys(unzipSync(file.bytes))).toEqual(["index.html"]);
   });
 });

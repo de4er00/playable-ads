@@ -1,4 +1,3 @@
-import { Application } from "pixi.js";
 import { createAudio } from "../../../kit/audio";
 import { boot } from "../../../kit/boot";
 import { createCta } from "../../../kit/cta";
@@ -7,12 +6,11 @@ import { currentNetwork } from "../../../kit/network";
 import { installStubs } from "../../../kit/stubs";
 import variants from "../variants.json";
 import { Game, type Variant } from "./game";
-import { LEVEL } from "./level";
 
 declare const __VARIANT_ID__: string | undefined;
 
 // A fictional game: the store link is a placeholder, the network SDK decides where it really goes.
-const STORE_URL = "https://play.google.com/store/apps/details?id=com.example.shadowstep";
+const STORE_URL = "https://play.google.com/store/apps/details?id=com.example.spiralsiege";
 
 const params = new URLSearchParams(location.search);
 const variantId = typeof __VARIANT_ID__ === "string" ? __VARIANT_ID__ : params.get("v") || "a";
@@ -22,41 +20,31 @@ if (stubbed) installStubs(window, network);
 
 const audio = createAudio(window);
 const cta = createCta(network, window, STORE_URL);
-let game: Game | null = null;
+const game = new Game(variant, audio, cta);
 let startWanted = false;
-
-const app = new Application();
+let ready = false;
 
 boot(window, {
   onStart() {
     startWanted = true;
-    game?.start();
+    if (ready) game.start();
   },
   onPause() {
-    app.ticker?.stop();
+    game.pause();
     audio.mute(true);
   },
   onResume() {
-    app.ticker?.start();
+    game.resume();
     audio.mute(false);
   },
 });
 
-(async () => {
-  await app.init({
-    background: 0x1d1830,
-    resizeTo: window,
-    antialias: true,
-    autoDensity: true,
-    resolution: Math.min(window.devicePixelRatio || 1, 2),
-    preference: "webgl",
-  });
-  document.body.appendChild(app.canvas);
-  game = new Game(app, variant, audio, cta);
-  addEventListener("resize", () => requestAnimationFrame(() => game?.resize()));
-  cta.ready();
+game.init().then(() => {
+  ready = true;
+  addEventListener("resize", () => requestAnimationFrame(() => game.resize()));
   document.getElementById("loader")?.remove();
-  if (startWanted) game.start();
+  cta.ready();
   fpsOverlay(window);
-  if (params.has("e2e")) (window as any).__playable = { game, network, variant: variantId, route: LEVEL.safeRoute };
-})();
+  if (startWanted) game.start();
+  if (params.has("e2e")) (window as any).__playable = { game, network, variant: variantId };
+});

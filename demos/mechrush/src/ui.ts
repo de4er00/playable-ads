@@ -1,57 +1,9 @@
 // The 2D layer, drawn by PixiJS over the Three.js scene: HUD, numbers on objects, cards, banners, end-card text.
-import { Application, BitmapText, Container, FillGradient, Graphics, Text, type TextStyleOptions } from "pixi.js";
+import { Application, BitmapText, Container, Graphics, type Text } from "pixi.js";
+import { Button, RarityCard, type Rarity, gradient, text } from "../../../kit/hud";
 import type { Card } from "./sim";
 
-const FONT = '"Arial Black", "Arial Rounded MT Bold", Impact, Arial, sans-serif';
-
-function gradient(top: number, bottom: number) {
-  return new FillGradient({ type: "linear", start: { x: 0, y: 0 }, end: { x: 0, y: 1 }, colorStops: [{ offset: 0, color: top }, { offset: 1, color: bottom }], textureSpace: "local" });
-}
-
-function text(value: string, size: number, opts: Partial<TextStyleOptions> = {}): Text {
-  const t = new Text({
-    text: value,
-    style: {
-      fontFamily: FONT,
-      fontSize: size,
-      fontWeight: "900",
-      fill: 0xffffff,
-      stroke: { color: 0x14213d, width: Math.max(3, size * 0.16), join: "round" },
-      dropShadow: { color: 0x000000, alpha: 0.35, blur: 0, distance: Math.max(2, size * 0.08), angle: Math.PI / 2 },
-      align: "center",
-      ...opts,
-    },
-  });
-  t.anchor.set(0.5);
-  return t;
-}
-
-/** A chunky glossy button: darker base for depth, a lighter top highlight, outlined label. */
-export class Button extends Container {
-  private t = 0;
-  /** Layout scale; pulse() breathes around it. */
-  base = 1;
-  constructor(label: string, w: number, h: number, top = 0x4be05f, bottom = 0x1f9a34, edge = 0x146b24) {
-    super();
-    const g = new Graphics()
-      .roundRect(-w / 2, -h / 2 + 6, w, h, h * 0.42)
-      .fill(edge)
-      .roundRect(-w / 2, -h / 2, w, h, h * 0.42)
-      .fill(gradient(top, bottom))
-      .stroke({ width: 3, color: 0x0d3b16 })
-      .roundRect(-w / 2 + 10, -h / 2 + 5, w - 20, h * 0.36, h * 0.18)
-      .fill({ color: 0xffffff, alpha: 0.28 });
-    this.addChild(g, text(label, h * 0.44, { stroke: { color: edge, width: h * 0.09, join: "round" } }));
-    this.eventMode = "static";
-    this.cursor = "pointer";
-  }
-  pulse(dt: number) {
-    this.t += dt;
-    this.scale.set(this.base * (1 + Math.sin(this.t * 6) * 0.04));
-  }
-}
-
-const RARITY: Record<Card, { name: string; top: number; bottom: number; glow: number; title: string; info: string }> = {
+const RARITY: Record<Card, Rarity> = {
   barrel: { name: "RARE", top: 0x5cc0ff, bottom: 0x1c5fd6, glow: 0x5cc0ff, title: "TWIN BARREL", info: "+60% damage" },
   rockets: { name: "EPIC", top: 0xd08bff, bottom: 0x6a2bd6, glow: 0xc06bff, title: "ROCKET POD", info: "Splash rockets" },
   shield: { name: "LEGENDARY", top: 0xffe27a, bottom: 0xff8a1c, glow: 0xffc23d, title: "SHIELD DRONE", info: "Blocks 12 hits" },
@@ -85,37 +37,8 @@ function cardIcon(card: Card): Graphics {
   return g;
 }
 
-class CardView extends Container {
-  glow = new Graphics();
-  vy = 0;
-  targetY = 0;
-  delay = 0;
-  constructor(public card: Card, w = 168, h = 248) {
-    super();
-    const r = RARITY[card];
-    this.glow.roundRect(-w / 2 - 16, -h / 2 - 16, w + 32, h + 32, 30).fill({ color: r.glow, alpha: 0.45 });
-    this.glow.visible = card === "shield";
-    const frame = new Graphics()
-      .roundRect(-w / 2, -h / 2, w, h, 20)
-      .fill(gradient(r.top, r.bottom))
-      .stroke({ width: 5, color: 0x101624 })
-      .roundRect(-w / 2 + 10, -h / 2 + 44, w - 20, h - 54, 14)
-      .fill(gradient(0x26304a, 0x141a2b))
-      .roundRect(-w / 2 + 10, -h / 2 + 44, w - 20, 8, 4)
-      .fill({ color: 0xffffff, alpha: 0.12 });
-    const ribbon = text(r.name, 22, { stroke: { color: 0x101624, width: 5, join: "round" } });
-    ribbon.y = -h / 2 + 24;
-    const icon = cardIcon(card);
-    icon.y = -18;
-    const title = text(r.title, 21, { wordWrap: true, wordWrapWidth: w - 24, lineHeight: 22 });
-    title.y = h / 2 - 66;
-    const info = text(r.info, 15, { fill: 0xbfe9ff, stroke: { color: 0x101624, width: 4, join: "round" }, dropShadow: false });
-    info.y = h / 2 - 28;
-    this.addChild(this.glow, frame, ribbon, icon, title, info);
-    this.eventMode = "static";
-    this.cursor = "pointer";
-  }
-}
+type CardView = RarityCard<Card>;
+const cardView = (card: Card): CardView => new RarityCard(card, RARITY[card], cardIcon(card), card === "shield");
 
 interface Floater {
   view: Container;
@@ -209,6 +132,8 @@ export class Ui {
 
     this.cards.visible = false;
     this.dim.visible = false;
+    // overlays never take touches, so nothing decorative can swallow a tap on a card
+    for (const o of [this.badge, this.bossBar, this.banner, this.hand, this.hint, this.logo, this.pill]) o.eventMode = "none";
     this.root.addChild(this.dim, this.badge, this.bossBar, this.banner, this.cards, this.hand, this.hint, this.logo, this.cta, this.pill, this.endLayer);
     this.endLayer.visible = false;
   }
@@ -250,6 +175,7 @@ export class Ui {
   flyNut(x: number, y: number) {
     const g = new Graphics().poly(Array.from({ length: 6 }, (_, i) => [Math.cos((i / 6) * Math.PI * 2) * 10, Math.sin((i / 6) * Math.PI * 2) * 10]).flat()).fill(gradient(0xffe27a, 0xd99a14)).stroke({ width: 2, color: 0x5a3a08 });
     g.position.set(x, y);
+    g.eventMode = "none";
     this.root.addChild(g);
     this.flyers.push({ view: g, fx: x, fy: y, t: 0, arc: (Math.random() - 0.5) * 120 });
   }
@@ -280,6 +206,7 @@ export class Ui {
     x = this.clampX(x + (Math.random() - 0.5) * 30, t.width * 0.6);
     y = Math.max(y, 150, x - t.width / 2 < this.hudRight + 10 ? this.hudBottom + 60 : 0);
     t.position.set(x, y);
+    t.eventMode = "none";
     this.root.addChild(t);
     this.floaters.push({ view: t, vy: -110 - Math.random() * 40, life: 0, max: 0.7 });
   }
@@ -293,6 +220,7 @@ export class Ui {
     const t = text(value, 54, { fill: color, stroke: { color: 0x14213d, width: 9, join: "round" } });
     // floaters pop up to 1.2x, so clamp the grown width
     t.position.set(this.clampX(x, t.width * 0.6), y);
+    t.eventMode = "none";
     this.root.addChild(t);
     this.floaters.push({ view: t, vy: -70, life: 0, max: 0.9 });
   }
@@ -332,7 +260,7 @@ export class Ui {
     // in landscape the title runs into the logo: the logo steps aside while the cards are up
     this.logo.visible = portrait;
     const views = choices.map((c, i) => {
-      const v = new CardView(c);
+      const v = cardView(c);
       v.scale.set(scale);
       v.position.set(this.w / 2 + (i - 1) * 176 * scale, -200);
       v.targetY = this.h * (portrait ? 0.48 : 0.56);
@@ -366,18 +294,20 @@ export class Ui {
         outro();
       };
       for (const v of views) v.on("pointerdown", (e) => { e.stopPropagation(); finish(v.card); });
-      let last = performance.now();
+      const start = performance.now();
       const intro = () => {
         const now = performance.now();
-        const dt = Math.min(0.05, (now - last) / 1000);
-        last = now;
+        const el = (now - start) / 1000;
+        // drop-in by the clock, not by frames: a slow device sees the same timing (ease-out-back, small bounce)
         for (const v of views) {
-          if (v.delay > 0) { v.delay -= dt; continue; }
-          v.vy += (v.targetY - v.y) * 220 * dt - v.vy * 12 * dt;
-          v.y += v.vy * dt;
+          const k = Math.min(1, Math.max(0, (el - v.delay) / 0.5));
+          const e = 1 + 2.7 * Math.pow(k - 1, 3) + 1.7 * Math.pow(k - 1, 2);
+          v.y = -200 + (v.targetY + 200) * e;
           v.glow.alpha = 0.6 + Math.sin(now / 160) * 0.4;
         }
-        idle += dt;
+        // the card screen draws itself: on a slow device it stays smooth, and taps hit where the cards are
+        this.app.render();
+        idle = el;
         // nobody taps: the hand points at the gold card, then it is taken for them
         if (idle > 1.6) {
           const gold = views.find((v) => v.card === "shield") ?? views[1];
@@ -401,7 +331,7 @@ export class Ui {
     this.endTitle = text(title, 62, { fill: gradient(0xffe27a, 0xff8a1c), stroke: { color: 0x3a1600, width: 10, join: "round" } });
     this.endSub = text(sub, 26);
     this.endCards = picks.map((c) => {
-      const v = new CardView(c);
+      const v = cardView(c);
       v.eventMode = "none";
       return v;
     });

@@ -1,34 +1,26 @@
-// Every model is built here from code: chamfered boxes, cylinders and extrusions, one vertex colour per part.
-// Parts that move together are merged into one geometry, so a squad of 80 mechs is a handful of draw calls.
+// Every Mech Rush model, built from code with the shared low-poly helpers in kit/lowpoly.
 import {
   type BufferGeometry,
   CanvasTexture,
-  Color,
-  CylinderGeometry,
   DodecahedronGeometry,
   ExtrudeGeometry,
-  Float32BufferAttribute,
   Group,
   IcosahedronGeometry,
-  Matrix4,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
-  Object3D,
   PlaneGeometry,
-  Quaternion,
   Shape,
   SphereGeometry,
   TorusGeometry,
   Vector3,
   ConeGeometry,
-  BoxGeometry,
   DoubleSide,
-  AdditiveBlending,
   SRGBColorSpace,
 } from "three";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { blobTexture, box, cyl, drawLabel, glowMaterial, glowTexture, labelTexture, litMaterial, merge, part } from "../../../kit/lowpoly";
+
+export { blobTexture, drawLabel, glowMaterial, glowTexture, labelTexture, litMaterial, merge, part };
 
 export const C = {
   blue: 0x2f7be6,
@@ -47,38 +39,8 @@ export const C = {
   concrete: 0xb9b4aa,
 };
 
-const tmp = new Object3D();
-
-/** One part: geometry placed by position, rotation (Euler XYZ) and scale, painted one colour. */
-export function part(geo: BufferGeometry, color: number, pos: [number, number, number] = [0, 0, 0], rot: [number, number, number] = [0, 0, 0], scale: [number, number, number] = [1, 1, 1]): BufferGeometry {
-  tmp.position.set(...pos);
-  tmp.rotation.set(...rot);
-  tmp.scale.set(...scale);
-  tmp.updateMatrix();
-  let g = geo.index ? geo.toNonIndexed() : geo.clone();
-  g.applyMatrix4(tmp.matrix);
-  for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal") g.deleteAttribute(name);
-  const c = new Color(color);
-  const n = g.attributes.position.count;
-  const colors = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) colors.set([c.r, c.g, c.b], i * 3);
-  g.setAttribute("color", new Float32BufferAttribute(colors, 3));
-  return g;
-}
-
-export function merge(parts: BufferGeometry[]): BufferGeometry {
-  const g = mergeGeometries(parts, false)!;
-  g.computeBoundingSphere();
-  return g;
-}
-
-const box = (w: number, h: number, d: number, r = 0.06) => new RoundedBoxGeometry(w, h, d, 2, Math.min(r, w / 2, h / 2, d / 2) * 0.999);
-const cyl = (rt: number, rb: number, h: number, seg = 12) => new CylinderGeometry(rt, rb, h, seg);
 const X90: [number, number, number] = [Math.PI / 2, 0, 0];
 const Z90: [number, number, number] = [0, 0, Math.PI / 2];
-
-export const litMaterial = () => new MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.2 });
-export const glowMaterial = (color: number) => new MeshBasicMaterial({ color, toneMapped: false });
 
 /**
  * Mini mech, facing -z, feet at y = 0, about 1.3 tall before the instance scale.
@@ -158,65 +120,6 @@ export function nut() {
     part(cyl(0.22, 0.22, 0.12, 6), C.gold, [0, 0, 0]),
     part(cyl(0.11, 0.11, 0.13, 12), 0x8a5a12, [0, 0, 0]),
   ]);
-}
-
-/** Soft round shadow under each unit, as a texture for instanced quads. */
-export function blobTexture(): CanvasTexture {
-  const cv = document.createElement("canvas");
-  cv.width = cv.height = 64;
-  const g = cv.getContext("2d")!;
-  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-  grad.addColorStop(0, "rgba(0,0,0,0.55)");
-  grad.addColorStop(0.6, "rgba(0,0,0,0.25)");
-  grad.addColorStop(1, "rgba(0,0,0,0)");
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 64, 64);
-  return new CanvasTexture(cv);
-}
-
-/** Additive glow sprite texture: hot centre, soft falloff. */
-export function glowTexture(): CanvasTexture {
-  const cv = document.createElement("canvas");
-  cv.width = cv.height = 64;
-  const g = cv.getContext("2d")!;
-  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-  grad.addColorStop(0, "rgba(255,255,255,1)");
-  grad.addColorStop(0.25, "rgba(255,255,255,0.6)");
-  grad.addColorStop(1, "rgba(255,255,255,0)");
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 64, 64);
-  const t = new CanvasTexture(cv);
-  t.colorSpace = SRGBColorSpace;
-  return t;
-}
-
-/** Number written on a canvas, for gate panels and the barricade: thick outline, slight gradient. */
-export function labelTexture(text: string, fill = "#ffffff", stroke = "#14213d", w = 256, h = 128): CanvasTexture {
-  const cv = document.createElement("canvas");
-  cv.width = w;
-  cv.height = h;
-  const t = new CanvasTexture(cv);
-  t.colorSpace = SRGBColorSpace;
-  drawLabel(cv, text, fill, stroke);
-  return t;
-}
-
-export function drawLabel(cv: HTMLCanvasElement, text: string, fill: string, stroke: string) {
-  const g = cv.getContext("2d")!;
-  g.clearRect(0, 0, cv.width, cv.height);
-  const size = Math.round(cv.height * 0.72);
-  g.font = `900 ${size}px "Arial Black", Impact, Arial, sans-serif`;
-  g.textAlign = "center";
-  g.textBaseline = "middle";
-  g.lineJoin = "round";
-  g.lineWidth = size * 0.18;
-  g.strokeStyle = stroke;
-  g.strokeText(text, cv.width / 2, cv.height / 2 + size * 0.04);
-  const grad = g.createLinearGradient(0, cv.height * 0.2, 0, cv.height * 0.8);
-  grad.addColorStop(0, "#ffffff");
-  grad.addColorStop(1, fill);
-  g.fillStyle = grad;
-  g.fillText(text, cv.width / 2, cv.height / 2 + size * 0.04);
 }
 
 /** A gate panel: two posts, a lit glass sheet tinted by sign, a chevron header and the number. */

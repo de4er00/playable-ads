@@ -11,16 +11,16 @@ const REPO = process.env.REPO_URL || "https://github.com/de4er00/playable-ads";
 
 const DEMOS = [
   {
-    id: "stealth",
-    title: "Shadow Step: 2D stealth (PixiJS)",
-    sub: "Draw a path with your finger. A straight line walks into the flashlight; the route behind the crates gets you to the guard's back. The cone is a ray-cast polygon, and the same polygon decides whether you are seen.",
-    variants: { a: "camera sweep, Level 2 card", b: "hand from frame one, gear card", c: "faster sweep, longer reach" },
+    id: "mechrush",
+    title: "Mech Rush: squad runner (Three.js + PixiJS)",
+    sub: "Drag to steer the squad through number gates, shoot through the drone hordes and the barricade, pick one of three upgrade cards, then take down the boss. Every model is built in code; the crowd is instanced.",
+    variants: { a: "fly-in hook, narrow win", b: "fail ending: boss left at under 25%", c: "no intro, gates sooner" },
   },
   {
-    id: "tanks",
-    title: "Tank Rush: 3D arena (Three.js)",
-    sub: "Hold and drag to aim; the tank fires on its own. Crates break first, then three tanks, then the bunker. Models are boxes, cylinders and an extruded hull with an inverted-hull outline, built at load time.",
-    variants: { a: "fly-in camera, Level 2 card", b: "no fly-in, double barrel card", c: "tougher enemies, faster fire" },
+    id: "siege",
+    title: "Spiral Siege: merge tower defense (Three.js + PixiJS)",
+    sub: "A spiked snake crawls the spiral toward the tower. Drag a mage onto its twin to merge it a level up, summon more with the coins, pick an element at tower level 2, then hold off the boss snake. Left alone, the ad plays itself.",
+    variants: { a: "full spiral, narrow win", b: "fail ending: the boss reaches the tower", c: "rush hook: the snake starts halfway in" },
   },
 ];
 const NETWORKS = ["applovin", "unity", "liftoff", "google", "meta", "moloco", "mintegral", "tiktok"];

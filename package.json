@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev:stealth": "vite demos/stealth",
+    "dev:mechrush": "vite demos/mechrush",
+    "dev:siege": "vite demos/siege",
     "build:all": "node build/build-all.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
